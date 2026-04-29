@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>在庫表</title>
+  <meta name="theme-color" content="#006241">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><circle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23006241%22/><path d=%22M16 6c4 0 7 3 7 7s-3 7-7 7-7-3-7-7 3-7 7-7Z%22 fill=%22white%22/></svg>">
+  <style>
+    :root {
+      --green: #006241; --deep: #004c33; --cream: #f7f3e9;
+      --paper: #fffdf6; --ink: #1f2937; --muted: #6b7280;
+      --line: rgba(0,0,0,.08); --radius: 16px;
+      --warn-bg: #fef3c7; --warn-line: #fde68a; --warn-ink: #92400e;
+      --zero-bg: #fee2e2; --zero-line: #fecaca; --zero-ink: #b91c1c;
+    }
+    * { box-sizing: border-box }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, var(--cream), #fff 300px);
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(180deg, var(--green), var(--deep));
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15);
+    }
+    .head-main {
+      display: flex; gap: 12px; align-items: center;
+      justify-content: space-between; flex-wrap: wrap;
+      padding: 12px 16px 10px;
+    }
+    .title { display: flex; align-items: center; gap: 10px }
+    .bean {
+      width: 24px; height: 24px; flex-shrink: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0a7350, #004c33);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.15), 0 4px 10px rgba(0,0,0,.2);
+      position: relative;
+    }
+    .bean::before {
+      content: "";
+      position: absolute; top: 3px; bottom: 3px;
+      left: 50%; width: 3px;
+      background: #d2e7df; border-radius: 2px;
+      transform: translateX(-50%);
+    }
+    .head-title { font-size: 18px; font-weight: 800 }
+    .toolbar { display: flex; gap: 8px; align-items: center }
+    .btn {
+      background: #fff; color: var(--green);
+      border: 1px solid rgba(0,0,0,.06);
+      padding: 7px 14px; border-radius: 999px;
+      font-weight: 600; font-size: 13px; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,.12) }
+    .btn.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4) }
+    .btn.ghost:hover { background: rgba(255,255,255,.1) }
+
+    /* ── 情報バー（日付・担当） ── */
+    .info-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 4px 16px 14px; flex-wrap: wrap;
+    }
+    .info-item { display: flex; align-items: center; gap: 6px }
+    .info-label { font-size: 12px; color: #d1fae5; white-space: nowrap }
+    .info-input {
+      background: rgba(255,255,255,.15); color: #fff;
+      border: 1px solid rgba(255,255,255,.3);
+      padding: 5px 10px; border-radius: 999px;
+      font-size: 13px; outline: none;
+      font-family: inherit;
+    }
+    .info-input::placeholder { color: rgba(255,255,255,.6) }
+    .info-input:focus { background: rgba(255,255,255,.25); border-color: rgba(255,255,255,.6) }
+    .info-input[type="date"] { color-scheme: dark }
+
+    /* Grid */
+    .wrap { max-width: 780px; margin: 18px auto 24px; padding: 0 14px }
+    .grid { display: flex; flex-direction: column; gap: 14px }
+
+    /* Card */
+    .card {
+      background: var(--paper); border-radius: var(--radius);
+      border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.06);
+    }
+    .card-head {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 14px;
+    }
+    .cat-name { flex: 1; font-size: 15px; font-weight: 700; color: var(--deep) }
+    .cat-icon {
+      width: 28px; height: 28px; flex-shrink: 0;
+      border-radius: 8px;
+      background: var(--cream);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .total-badge {
+      font-size: 11px; color: var(--green);
+      background: var(--cream); border: 1px solid rgba(0,98,65,.15);
+      padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+      font-weight: 600;
+    }
+
+    /* List */
+    .list { list-style: none; margin: 0; padding: 0 12px 12px; border-top: 1px dashed rgba(0,0,0,.08) }
+
+    /* Row */
+    .row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 12px;
+      border: 1px dashed rgba(0,0,0,.07);
+      margin-top: 6px; background: #fff;
+      transition: border-color .15s, background .15s;
+    }
+    .row.zero { background: var(--zero-bg); border-color: var(--zero-line) }
+    .row.low  { background: var(--warn-bg); border-color: var(--warn-line) }
+
+    .item-name { flex: 1; font-size: 14px; font-weight: 500 }
+    .item-name .unit { font-size: 11px; color: var(--muted); margin-left: 6px; font-weight: 400 }
+
+    .qty-wrap {
+      display: flex; align-items: center; gap: 0;
+      border: 1px solid rgba(0,0,0,.12); border-radius: 10px;
+      overflow: hidden; flex-shrink: 0;
+      background: #fff;
+    }
+    .qty-btn {
+      width: 32px; height: 34px; flex-shrink: 0;
+      background: #f3f4f6; border: none; cursor: pointer;
+      font-size: 18px; line-height: 1; color: var(--green); font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .qty-btn:hover { background: #e6f4ec }
+    .qty-btn:active { background: #d1fae5 }
+    .qty {
+      width: 52px; height: 34px; text-align: center;
+      border: none; border-left: 1px solid rgba(0,0,0,.1); border-right: 1px solid rgba(0,0,0,.1);
+      padding: 4px 2px; font-size: 16px; font-weight: 700; outline: none;
+      color: var(--ink);
+      -moz-appearance: textfield;
+    }
+    .qty::-webkit-outer-spin-button,
+    .qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0 }
+    .row.zero .qty { color: var(--zero-ink) }
+    .row.low  .qty { color: var(--warn-ink) }
+
+    .del-btn {
+      width: 26px; height: 26px; flex-shrink: 0;
+      background: none; border: none; cursor: pointer;
+      color: #d1d5db; border-radius: 6px; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color .15s, background .15s;
+      opacity: 0;
+    }
+    .row:hover .del-btn { opacity: 1 }
+    .del-btn:hover { color: #ef4444; background: #fef2f2 }
+
+    /* Add item */
+    .add-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 12px; margin-top: 6px;
+      border-radius: 12px; border: 1px dashed rgba(0,98,65,.2);
+      cursor: pointer; color: var(--green); font-size: 13px;
+      transition: background .15s;
+    }
+    .add-row:hover { background: #f0fdf4 }
+    .add-row.open { background: #f0fdf4; border-color: var(--green); cursor: default }
+    .add-label { display: flex; align-items: center; gap: 6px }
+    .add-row.open .add-label { display: none }
+    .add-input {
+      display: none; flex: 1;
+      border: none; background: transparent; outline: none;
+      font-size: 14px; color: var(--ink);
+    }
+    .add-row.open .add-input { display: block }
+    .add-confirm {
+      display: none; background: var(--green); color: #fff;
+      border: none; border-radius: 8px; padding: 5px 12px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .add-row.open .add-confirm { display: block }
+
+    /* メモカード */
+    .memo-card { padding: 12px 14px }
+    .memo-card .cat-name { margin-bottom: 8px }
+    .memo-input {
+      width: 100%; min-height: 60px;
+      border: 1px dashed rgba(0,0,0,.12);
+      border-radius: 10px;
+      padding: 10px 12px; font-size: 14px;
+      font-family: inherit; resize: vertical;
+      outline: none; background: #fff;
+      color: var(--ink);
+      transition: border-color .15s;
+    }
+    .memo-input:focus { border-color: var(--green); border-style: solid }
+
+    footer { max-width: 780px; margin: 0 auto 32px; padding: 10px 14px; color: var(--muted); font-size: 12px; text-align: center }
+
+    /* スクショ用：印刷でもキレイに */
+    @media print {
+      header { box-shadow: none }
+      .toolbar, .del-btn, .add-row, footer { display: none !important }
+      body { background: #fff !important }
+      .row, .card { break-inside: avoid }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="head-main">
+      <div class="title">
+        <span class="bean"></span>
+        <div class="head-title">在庫表</div>
+      </div>
+      <div class="toolbar">
+        <button class="btn ghost" id="resetBtn">数量リセット</button>
+      </div>
+    </div>
+    <div class="info-bar">
+      <div class="info-item">
+        <span class="info-label">日付</span>
+        <input type="date" class="info-input" id="dateInput" />
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="grid" id="grid"></div>
+
+    <!-- メモ欄 -->
+    <section class="card memo-card" style="margin-top:14px">
+      <div class="cat-name">メモ・連絡事項</div>
+      <textarea class="memo-input" id="memoInput" placeholder="例：牛乳明日朝発注／パウンドケーキ午後追加納品予定 など"></textarea>
+    </section>
+  </div>
+
+  <footer>数量・メモは自動保存されます。スクショして共有してください。</footer>
+
+  <script>
+    // ── ベースデータ（カテゴリ → アイテム配列） ──
+    // unit はアイテム名横に薄く表示する単位ヒント（任意）
+    const BASE_DATA = {
+      "ドリンク": [
+        { name: "牛乳",            unit: "本" },
+        { name: "オレンジジュース", unit: "本" },
+        { name: "アップルジュース", unit: "本" },
+        { name: "グラニータ原料",   unit: "袋" },
+        { name: "ティーベース",     unit: "本" },
+      ],
+      "フード": [
+        { name: "オレンジチョコ",   unit: "個" },
+        { name: "トレイベイク",     unit: "個" },
+        { name: "パウンドケーキ",   unit: "個" },
+      ],
+    };
+    const CAT_ICONS = {
+      "ドリンク": "🥤",
+      "フード":   "🍰",
+    };
+    const ORDER = Object.keys(BASE_DATA);
+
+    // ── 状態管理 ──
+    const STORE_KEY = 'cafe-stock-v1';
+    const load = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {} } catch { return {} } };
+    const save = s => localStorage.setItem(STORE_KEY, JSON.stringify(s));
+    const state = load();
+    if (!state.qty)          state.qty          = {};   // {"カテゴリ::アイテム": 数量}
+    if (!state.customItems)  state.customItems  = {};   // {"カテゴリ": [追加アイテム名]}
+    if (!state.deletedItems) state.deletedItems = {};   // {"カテゴリ": [削除されたデフォルト名]}
+    if (!state.memo)         state.memo         = '';
+    if (!state.date)         state.date         = todayStr();
+
+    function todayStr() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    const key = (cat, name) => `${cat}::${name}`;
+
+    // 表示するアイテム一覧（削除済みを除外、カスタム追加を後ろに）
+    function getItems(cat) {
+      const deleted = new Set(state.deletedItems[cat] || []);
+      const base = BASE_DATA[cat]
+        .filter(i => !deleted.has(i.name));
+      const customs = (state.customItems[cat] || []).map(name => ({ name, unit: '' }));
+      return [...base, ...customs];
+    }
+
+    function isCustom(cat, name) {
+      return (state.customItems[cat] || []).includes(name);
+    }
+
+    // ── レンダリング ──
+    function render() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      ORDER.forEach(cat => {
+        const items = getItems(cat);
+
+        const card = document.createElement('section');
+        card.className = 'card';
+
+        // カードヘッダー
+        const head = document.createElement('div');
+        head.className = 'card-head';
+
+        const icon = document.createElement('span');
+        icon.className = 'cat-icon';
+        icon.textContent = CAT_ICONS[cat] || '📦';
+
+        const catName = document.createElement('span');
+        catName.className = 'cat-name';
+        catName.textContent = cat;
+
+        const totalBadge = document.createElement('span');
+        totalBadge.className = 'total-badge';
+        const updateTotalBadge = () => {
+          const total = items.reduce((sum, i) => sum + (state.qty[key(cat, i.name)] || 0), 0);
+          totalBadge.textContent = `合計 ${total}`;
+        };
+        updateTotalBadge();
+
+        head.append(icon, catName, totalBadge);
+
+        // リスト
+        const ul = document.createElement('ul');
+        ul.className = 'list';
+
+        items.forEach(item => {
+          const k = key(cat, item.name);
+          const li = document.createElement('li');
+          li.className = 'row';
+
+          const cur = state.qty[k] ?? 0;
+          if (cur === 0) li.classList.add('zero');
+          else if (cur <= 2) li.classList.add('low');
+
+          // アイテム名 + 単位
+          const nameEl = document.createElement('span');
+          nameEl.className = 'item-name';
+          nameEl.textContent = item.name;
+          if (item.unit) {
+            const u = document.createElement('span');
+            u.className = 'unit';
+            u.textContent = `(${item.unit})`;
+            nameEl.append(u);
+          }
+
+          // 数量入力
+          const qtyWrap = document.createElement('div');
+          qtyWrap.className = 'qty-wrap';
+
+          const qtyMinus = document.createElement('button');
+          qtyMinus.className = 'qty-btn'; qtyMinus.textContent = '－'; qtyMinus.type = 'button';
+
+          const qty = document.createElement('input');
+          qty.type = 'number'; qty.className = 'qty';
+          qty.min = '0'; qty.step = '1';
+          qty.value = cur;
+          qty.inputMode = 'numeric';
+
+          const qtyPlus = document.createElement('button');
+          qtyPlus.className = 'qty-btn'; qtyPlus.textContent = '＋'; qtyPlus.type = 'button';
+
+          // 行の見た目を数量に応じて更新
+          const updateRowStyle = () => {
+            const v = parseInt(qty.value, 10) || 0;
+            li.classList.toggle('zero', v === 0);
+            li.classList.toggle('low',  v > 0 && v <= 2);
+          };
+
+          qty.onchange = () => {
+            const v = parseInt(qty.value, 10);
+            state.qty[k] = (Number.isFinite(v) && v >= 0) ? v : 0;
+            qty.value = state.qty[k];
+            updateRowStyle(); updateTotalBadge(); save(state);
+          };
+          qty.onfocus = () => qty.select();
+
+          qtyMinus.onclick = () => {
+            const c = parseInt(qty.value, 10) || 0;
+            const next = Math.max(0, c - 1);
+            qty.value = next; state.qty[k] = next;
+            updateRowStyle(); updateTotalBadge(); save(state);
+          };
+          qtyPlus.onclick = () => {
+            const c = parseInt(qty.value, 10) || 0;
+            qty.value = c + 1; state.qty[k] = c + 1;
+            updateRowStyle(); updateTotalBadge(); save(state);
+          };
+
+          qtyWrap.append(qtyMinus, qty, qtyPlus);
+
+          // 削除ボタン
+          const delBtn = document.createElement('button');
+          delBtn.className = 'del-btn'; delBtn.title = '削除'; delBtn.textContent = '✕';
+          delBtn.onclick = () => {
+            if (!confirm(`「${item.name}」を削除しますか？`)) return;
+            if (isCustom(cat, item.name)) {
+              state.customItems[cat] = state.customItems[cat].filter(n => n !== item.name);
+            } else {
+              if (!state.deletedItems[cat]) state.deletedItems[cat] = [];
+              state.deletedItems[cat].push(item.name);
+            }
+            delete state.qty[k];
+            save(state); render();
+          };
+
+          li.append(nameEl, qtyWrap, delBtn);
+          ul.append(li);
+        });
+
+        // ── アイテム追加行 ──
+        const addRow = document.createElement('li');
+        addRow.className = 'add-row';
+
+        const addLabel = document.createElement('span');
+        addLabel.className = 'add-label';
+        addLabel.innerHTML = '<span style="font-size:15px;line-height:1">＋</span> アイテムを追加';
+
+        const addInput = document.createElement('input');
+        addInput.type = 'text'; addInput.className = 'add-input';
+        addInput.placeholder = 'アイテム名を入力… (Enterで確定)';
+
+        const addConfirm = document.createElement('button');
+        addConfirm.className = 'add-confirm'; addConfirm.textContent = '追加';
+
+        const doAdd = () => {
+          const name = addInput.value.trim();
+          if (!name) return;
+          if (!state.customItems[cat]) state.customItems[cat] = [];
+          state.customItems[cat].push(name);
+          save(state); render();
+        };
+
+        addRow.onclick = () => {
+          if (!addRow.classList.contains('open')) {
+            addRow.classList.add('open'); addInput.focus();
+          }
+        };
+        addInput.onclick = e => e.stopPropagation();
+        addInput.onkeydown = e => {
+          if (e.key === 'Enter') doAdd();
+          if (e.key === 'Escape') { addRow.classList.remove('open'); addInput.value = ''; }
+        };
+        addConfirm.onclick = e => { e.stopPropagation(); doAdd(); };
+
+        addRow.append(addLabel, addInput, addConfirm);
+        ul.append(addRow);
+
+        card.append(head, ul);
+        grid.append(card);
+      });
+    }
+
+    render();
+
+    // ── 情報バー ──
+    const dateInput = document.getElementById('dateInput');
+    const memoInput = document.getElementById('memoInput');
+
+    dateInput.value = state.date;
+    memoInput.value = state.memo;
+
+    dateInput.onchange = () => { state.date = dateInput.value; save(state); };
+    memoInput.oninput  = () => { state.memo = memoInput.value; save(state); };
+
+    // ── 数量リセット ──
+    document.getElementById('resetBtn').onclick = () => {
+      if (confirm('数量とメモをリセットしますか？\n（追加・削除したアイテムは保持されます）')) {
+        state.qty = {};
+        state.memo = '';
+        memoInput.value = '';
+        save(state); render();
+      }
+    };
+  </script>
+</body>
+</html>
