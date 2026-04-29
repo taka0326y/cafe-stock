@@ -92,7 +92,7 @@
     }
     .card-head {
       display: flex; align-items: center; gap: 8px;
-      padding: 12px 14px;
+      padding: 12px 14px; cursor: pointer; user-select: none;
     }
     .cat-name { flex: 1; font-size: 15px; font-weight: 700; color: var(--deep) }
     .cat-icon {
@@ -108,9 +108,16 @@
       padding: 3px 10px; border-radius: 999px; white-space: nowrap;
       font-weight: 600;
     }
+    /* 折りたたみ用シェブロン（▼） */
+    .chev {
+      font-size: 11px; color: var(--green); opacity: .7;
+      transition: transform .2s; flex-shrink: 0;
+    }
+    .card.fold .chev { transform: rotate(-90deg); opacity: .5 }
 
     /* List */
     .list { list-style: none; margin: 0; padding: 0 12px 12px; border-top: 1px dashed rgba(0,0,0,.08) }
+    .list.fold { display: none }
 
     /* Row */
     .row {
@@ -278,6 +285,7 @@
     if (!state.qty)          state.qty          = {};   // {"カテゴリ::アイテム": 数量}
     if (!state.customItems)  state.customItems  = {};   // {"カテゴリ": [追加アイテム名]}
     if (!state.deletedItems) state.deletedItems = {};   // {"カテゴリ": [削除されたデフォルト名]}
+    if (!state.folded)       state.folded       = {};   // {"カテゴリ": true=折りたたみ中}
     if (!state.memo)         state.memo         = '';
     if (!state.date)         state.date         = todayStr();
 
@@ -314,8 +322,9 @@
 
         const card = document.createElement('section');
         card.className = 'card';
+        if (state.folded[cat]) card.classList.add('fold');
 
-        // カードヘッダー
+        // カードヘッダー（クリックで折りたたみ）
         const head = document.createElement('div');
         head.className = 'card-head';
 
@@ -335,11 +344,26 @@
         };
         updateTotalBadge();
 
-        head.append(icon, catName, totalBadge);
+        // ▼アイコン（折りたたみ時に右に90°回転）
+        const chev = document.createElement('span');
+        chev.className = 'chev';
+        chev.textContent = '▼';
+
+        head.append(icon, catName, totalBadge, chev);
 
         // リスト
         const ul = document.createElement('ul');
         ul.className = 'list';
+        if (state.folded[cat]) ul.classList.add('fold');
+
+        // ヘッダークリックでカード全体を折りたたみ／展開
+        head.onclick = () => {
+          const folded = !card.classList.contains('fold');
+          card.classList.toggle('fold', folded);
+          ul.classList.toggle('fold', folded);
+          state.folded[cat] = folded;
+          save(state);
+        };
 
         items.forEach(item => {
           const k = key(cat, item.name);
